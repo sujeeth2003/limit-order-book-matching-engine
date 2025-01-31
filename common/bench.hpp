@@ -23,3 +23,9 @@ struct TscClock {
     base_tsc = t1; base_ns = s1;
   }
 };
+inline uint64_t now_ns() {
+  static const TscClock c;
+  return c.base_ns + (uint64_t)((double)(__builtin_ia32_rdtsc() - c.base_tsc) * c.ns_per_tick);
+}
+
+struct Pct { uint32_t p50, p99, p999, max; };
