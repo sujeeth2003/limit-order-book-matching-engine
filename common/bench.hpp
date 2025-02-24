@@ -29,3 +29,12 @@ inline uint64_t now_ns() {
 }
 
 struct Pct { uint32_t p50, p99, p999, max; };
+inline Pct percentiles(std::vector<uint32_t>& v) {
+  std::sort(v.begin(), v.end());
+  auto at = [&](double q) { return v[std::min(v.size() - 1, (size_t)(q * v.size()))]; };
+  return {at(0.50), at(0.99), at(0.999), v.back()};
+}
+
+// Runs the workload twice: once without per-op timing (throughput), once with
+// per-op timestamps (latency; includes ~20-30 ns of clock overhead per op).
+template <class Book>
