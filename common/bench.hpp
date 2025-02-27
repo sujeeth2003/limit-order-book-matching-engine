@@ -38,3 +38,27 @@ inline Pct percentiles(std::vector<uint32_t>& v) {
 // Runs the workload twice: once without per-op timing (throughput), once with
 // per-op timestamps (latency; includes ~20-30 ns of clock overhead per op).
 template <class Book>
+void run_bench(const char* name, const std::vector<Op>& ops) {
+  {
+    Book b;
+    uint64_t t0 = now_ns();
+    for (const Op& o : ops) {
+      if (o.cancel) (void)b.cancel(o.id); else b.add(o.id, o.side, o.px, o.qty);
+    }
+    uint64_t dt = now_ns() - t0;
+    std::printf("%-20s %7.2f Mops/s  trades=%llu vol=%llu\n", name, ops.size() / (dt / 1e3),
+                (unsigned long long)b.trades, (unsigned long long)b.volume);
+  }
+  {
+    Book b;
+    std::vector<uint32_t> lat;
+    lat.reserve(ops.size());
+    for (const Op& o : ops) {
+      uint64_t t0 = now_ns();
+      if (o.cancel) (void)b.cancel(o.id); else b.add(o.id, o.side, o.px, o.qty);
+      lat.push_back((uint32_t)(now_ns() - t0));
+    }
+    Pct p = percentiles(lat);
+    std::printf("%-20s p50=%uns p99=%uns p99.9=%uns max=%uns\n", "", p.p50, p.p99, p.p999, p.max);
+  }
+}
