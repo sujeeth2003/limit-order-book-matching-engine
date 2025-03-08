@@ -42,3 +42,23 @@ struct Book {
     l.push_back({id, q, s, px});
     idx[id] = std::prev(l.end());
   }
+  bool cancel(OrderId id) {
+    auto it = idx.find(id);
+    if (it == idx.end()) return false;
+    Order o = *it->second;
+    if (o.side == Buy) {
+      auto l = bids.find(o.px);
+      l->second.erase(it->second);
+      if (l->second.empty()) bids.erase(l);
+    } else {
+      auto l = asks.find(o.px);
+      l->second.erase(it->second);
+      if (l->second.empty()) asks.erase(l);
+    }
+    idx.erase(it);
+    return true;
+  }
+  Price best_bid() const { return bids.empty() ? NO_BID : bids.begin()->first; }
+  Price best_ask() const { return asks.empty() ? NO_ASK : asks.begin()->first; }
+};
+}  // namespace v1
