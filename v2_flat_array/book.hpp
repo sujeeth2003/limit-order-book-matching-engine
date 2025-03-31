@@ -24,3 +24,35 @@ struct Book {
   }
   Level& L(Side s, Price p) { return lv[(size_t)s * MAXP + p]; }
 
+  void advance(Side s) {  // best level emptied: walk to the next non-empty one
+    if (s == Buy) { Price b = best[Buy];  while (b >= 0 && L(Buy, b).head == NIL) --b;  best[Buy] = b; }
+    else          { Price a = best[Sell]; while (a < MAXP && L(Sell, a).head == NIL) ++a; best[Sell] = a; }
+  }
+  void unlink(Node& n, uint32_t i) {
+    Level& l = L(n.side, n.px);
+    if (n.prev != NIL) pool[n.prev].next = n.next; else l.head = n.next;
+    if (n.next != NIL) pool[n.next].prev = n.prev; else l.tail = n.prev;
+    slot[n.id] = NIL;
+    n.next = free_head;
+    free_head = i;
+  }
+  template <Side S> void add_impl(OrderId id, Price px, Qty q) {
+    constexpr Side O = S == Buy ? Sell : Buy;
+    while (q) {
+      Price bp = best[O];
+      if constexpr (S == Buy) { if (bp > px) break; } else { if (bp < px) break; }
+      Level& l = L(O, bp);
+      while (q && l.head != NIL) {
+        Node& n = pool[l.head];
+        Qty f = std::min(q, n.qty);
+        q -= f; n.qty -= f; ++trades; volume += f;
+        if (!n.qty) unlink(n, l.head);
+      }
+      if (l.head == NIL) advance(O);
+    }
+    if (!q) return;
+    uint32_t i = free_head;
+    Node& n = pool[i];
+    free_head = n.next;
+    Level& l = L(S, px);
+    n = {l.tail, NIL, q, (uint32_t)id, px, S};
