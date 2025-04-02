@@ -56,3 +56,26 @@ struct Book {
     free_head = n.next;
     Level& l = L(S, px);
     n = {l.tail, NIL, q, (uint32_t)id, px, S};
+    if (l.tail != NIL) pool[l.tail].next = i; else l.head = i;
+    l.tail = i;
+    slot[id] = i;
+    if constexpr (S == Buy) { if (px > best[Buy]) best[Buy] = px; }
+    else                    { if (px < best[Sell]) best[Sell] = px; }
+  }
+  void add(OrderId id, Side s, Price px, Qty q) {
+    if (s == Buy) add_impl<Buy>(id, px, q); else add_impl<Sell>(id, px, q);
+  }
+  bool cancel(OrderId id) {
+    uint32_t i = slot[id];
+    if (i == NIL) return false;
+    Node& n = pool[i];
+    Side s = n.side;
+    Price px = n.px;
+    unlink(n, i);
+    if (L(s, px).head == NIL && best[s] == px) advance(s);
+    return true;
+  }
+  Price best_bid() const { return best[Buy]; }
+  Price best_ask() const { return best[Sell]; }
+};
+}  // namespace v2
