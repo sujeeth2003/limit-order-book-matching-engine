@@ -13,3 +13,20 @@
 namespace v3 {
 constexpr uint32_t END = POOL;  // dummy pool slot used as list terminator
 
+struct Node { uint32_t prev, next; Qty qty; uint32_t id; Price px; uint32_t side; };
+struct Level { uint32_t head = END, tail = END; };
+
+struct Book {
+  std::unique_ptr<Node[]>     pool = std::make_unique<Node[]>(POOL + 1);
+  std::unique_ptr<uint32_t[]> slot = std::make_unique<uint32_t[]>(MAXID);
+  std::unique_ptr<Level[]>    lv   = std::make_unique<Level[]>(2 * MAXP);
+  uint32_t free_head = 0;
+  Price best[2] = {NO_BID, NO_ASK};
+  uint64_t trades = 0, volume = 0;
+
+  Book() {
+    for (uint32_t i = 0; i < POOL; ++i) pool[i].next = i + 1 < POOL ? i + 1 : END;
+    for (uint32_t i = 0; i < MAXID; ++i) slot[i] = END;
+  }
+  Level& L(uint32_t s, Price p) { return lv[(size_t)s * MAXP + p]; }
+
