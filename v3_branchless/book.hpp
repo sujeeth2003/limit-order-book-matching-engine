@@ -30,3 +30,35 @@ struct Book {
   }
   Level& L(uint32_t s, Price p) { return lv[(size_t)s * MAXP + p]; }
 
+  void advance(uint32_t s) {  // s = book side whose best level emptied
+    Price dir = (Price)(2 * s) - 1;             // Buy: -1, Sell: +1
+    Price lim = s ? MAXP : -1;
+    Price p = best[s];
+    while (p != lim && L(s, p).head == END) p += dir;
+    best[s] = p;
+  }
+  void unlink(Node& n, uint32_t i) {
+    Level& l = L(n.side, n.px);
+    uint32_t* fwd  = n.prev == END ? &l.head : &pool[n.prev].next;  // pointer select
+    uint32_t* back = n.next == END ? &l.tail : &pool[n.next].prev;
+    *fwd = n.next;
+    *back = n.prev;
+    slot[n.id] = END;
+    n.next = free_head;
+    free_head = i;
+  }
+  void add(OrderId id, Side side, Price px, Qty q) {
+    const uint32_t s = side, o = s ^ 1u;
+    const Price sgn = 1 - 2 * (Price)s;  // Buy +1, Sell -1
+    while (q) {
+      Price bp = best[o];
+      if (sgn * (px - bp) < 0) break;  // opposite best does not cross
+      Level& l = L(o, bp);
+      while (q && l.head != END) {
+        uint32_t cur = l.head;
+        Node& n = pool[cur];
+        Qty f = q < n.qty ? q : n.qty;
+        q -= f; n.qty -= f; ++trades; volume += f;
+        if (!n.qty) unlink(n, cur);
+      }
+      if (l.head == END) advance(o);
