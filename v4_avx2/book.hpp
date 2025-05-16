@@ -39,3 +39,16 @@ inline uint64_t sum_avx2(const uint32_t* a, int n) {
   return t;
 }
 
+// CPUID + XGETBV instead of __builtin_cpu_supports so this links without libgcc/compiler-rt.
+inline bool detect_avx2() {
+  unsigned a, b, c, d;
+  if (!__get_cpuid(1, &a, &b, &c, &d)) return false;
+  if (!(c & (1u << 27)) || !(c & (1u << 28))) return false;  // OSXSAVE + AVX
+  unsigned lo, hi;
+  __asm__ volatile("xgetbv" : "=a"(lo), "=d"(hi) : "c"(0));
+  if ((lo & 6) != 6) return false;                            // OS saves XMM+YMM
+  if (!__get_cpuid_count(7, 0, &a, &b, &c, &d)) return false;
+  return b & (1u << 5);                                       // AVX2
+}
+inline bool has_avx2() { static const bool ok = detect_avx2(); return ok; }
+
