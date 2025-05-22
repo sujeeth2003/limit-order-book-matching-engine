@@ -100,3 +100,32 @@ struct Book {
         Q(o, bp) -= f;
         if (!n.qty) unlink(n, cur);
       }
+      if (l.head == END) advance(o);
+    }
+    if (!q) return;
+    uint32_t i = free_head;
+    Node& n = pool[i];
+    free_head = n.next;
+    Level& l = L(s, px);
+    n = {l.tail, END, q, (uint32_t)id, px, s};
+    uint32_t* fwd = l.tail == END ? &l.head : &pool[l.tail].next;
+    *fwd = i;
+    l.tail = i;
+    slot[id] = i;
+    Q(s, px) += q;
+    best[s] = sgn * (px - best[s]) > 0 ? px : best[s];
+  }
+  bool cancel(OrderId id) {
+    uint32_t i = slot[id];
+    if (i == END) return false;
+    Node& n = pool[i];
+    uint32_t s = n.side;
+    Price px = n.px;
+    Q(s, px) -= n.qty;
+    unlink(n, i);
+    if (L(s, px).head == END && best[s] == px) advance(s);
+    return true;
+  }
+  Price best_bid() const { return best[Buy]; }
+  Price best_ask() const { return best[Sell]; }
+
