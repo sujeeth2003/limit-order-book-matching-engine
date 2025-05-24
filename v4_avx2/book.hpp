@@ -129,3 +129,15 @@ struct Book {
   Price best_bid() const { return best[Buy]; }
   Price best_ask() const { return best[Sell]; }
 
+  // Total resting quantity in the n price levels nearest the touch on `side`.
+  template <bool Simd>
+  uint64_t depth(Side side, int n) const {
+    Price b = best[side];
+    if (b == NO_BID || b == NO_ASK) return 0;
+    const uint32_t* base = lvq.get() + (size_t)side * MAXP;
+    int lo = side == Buy ? (b - n + 1 < 0 ? 0 : b - n + 1) : b;
+    int hi = side == Buy ? b + 1 : (b + n > MAXP ? MAXP : b + n);
+    return Simd ? sum_avx2(base + lo, hi - lo) : sum_scalar(base + lo, hi - lo);
+  }
+};
+}  // namespace v4
