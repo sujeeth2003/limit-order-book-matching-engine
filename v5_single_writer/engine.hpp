@@ -11,3 +11,14 @@
 #include "../common/spsc.hpp"
 
 namespace v5 {
+struct Msg { Op op; uint64_t t_send_ns; uint8_t stop; };
+using Ring = SpscRing<Msg, 1u << 16>;
+
+struct Result {
+  double mops = 0;
+  Pct lat{};
+  uint64_t trades = 0, volume = 0, processed = 0;
+};
+
+// gap_ns = spacing between sends per client (0 = as fast as the ring accepts).
+template <class Book>
