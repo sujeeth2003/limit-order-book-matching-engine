@@ -22,3 +22,27 @@ struct Result {
 
 // gap_ns = spacing between sends per client (0 = as fast as the ring accepts).
 template <class Book>
+Result run(unsigned clients, size_t ops_per_client, uint64_t gap_ns, int first_cpu = -1) {
+  std::vector<std::vector<Op>> work;
+  std::vector<std::unique_ptr<Ring>> rings;
+  for (unsigned c = 0; c < clients; ++c) {
+    work.push_back(make_workload(ops_per_client, 100 + c, (OrderId)c << 20));
+    rings.push_back(std::make_unique<Ring>());
+  }
+  std::atomic<bool> go{false};
+  std::vector<std::thread> threads;
+  for (unsigned c = 0; c < clients; ++c) {
+    threads.emplace_back([&, c] {
+      if (first_cpu >= 0) pin_thread(first_cpu + 1 + c);
+      while (!go.load(std::memory_order_acquire)) cpu_relax();
+      uint64_t next = now_ns();
+      for (const Op& o : work[c]) {
+        if (gap_ns) { while (now_ns() < next) cpu_relax(); next += gap_ns; }
+        Msg m{o, now_ns(), 0};
+        while (!rings[c]->push(m)) cpu_relax();
+      }
+      Msg m{}; m.stop = 1;
+      while (!rings[c]->push(m)) cpu_relax();
+    });
+  }
+
