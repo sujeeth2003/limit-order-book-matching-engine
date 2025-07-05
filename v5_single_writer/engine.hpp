@@ -46,3 +46,35 @@ Result run(unsigned clients, size_t ops_per_client, uint64_t gap_ns, int first_c
     });
   }
 
+  Result r;
+  Book book;
+  std::vector<uint32_t> lat;
+  lat.reserve(clients * ops_per_client);
+  if (first_cpu >= 0) pin_thread(first_cpu);
+  go.store(true, std::memory_order_release);
+  uint64_t t0 = now_ns();
+  unsigned stopped = 0;
+  Msg m;
+  while (stopped < clients) {
+    bool idle = true;
+    for (unsigned c = 0; c < clients; ++c) {
+      while (rings[c]->pop(m)) {
+        idle = false;
+        if (m.stop) { ++stopped; break; }
+        if (m.op.cancel) (void)book.cancel(m.op.id);
+        else book.add(m.op.id, m.op.side, m.op.px, m.op.qty);
+        lat.push_back((uint32_t)(now_ns() - m.t_send_ns));
+      }
+    }
+    if (idle) cpu_relax();
+  }
+  uint64_t dt = now_ns() - t0;
+  for (auto& t : threads) t.join();
+  r.processed = lat.size();
+  r.mops = r.processed / (dt / 1e3);
+  r.lat = percentiles(lat);
+  r.trades = book.trades;
+  r.volume = book.volume;
+  return r;
+}
+}  // namespace v5
