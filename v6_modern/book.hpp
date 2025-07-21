@@ -25,3 +25,9 @@ struct FixedPoint {
 };
 static_assert(FixedPoint::to_ticks(1'234'500, 100) == 12'345);  // 123.4500 @ 0.01 tick
 
+struct NoTradeHook {
+  constexpr void operator()(OrderId /*maker*/, OrderId /*taker*/, Price, Qty) const noexcept {}
+};
+
+template <Price MaxPrice = MAXP, uint32_t PoolSize = POOL, uint32_t MaxIds = MAXID,
+          class OnTrade = NoTradeHook>
