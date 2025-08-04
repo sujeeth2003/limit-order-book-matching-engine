@@ -31,3 +31,18 @@ struct NoTradeHook {
 
 template <Price MaxPrice = MAXP, uint32_t PoolSize = POOL, uint32_t MaxIds = MAXID,
           class OnTrade = NoTradeHook>
+class Book {
+  static_assert(MaxPrice > 1 && PoolSize > 0 && MaxIds >= PoolSize);
+  static constexpr uint32_t kEnd = PoolSize;  // dummy slot terminating every list
+  static constexpr Price kNoBid = -1, kNoAsk = MaxPrice;
+
+  struct Node { uint32_t prev, next; Qty qty; uint32_t id; Price px; uint32_t side; };
+  struct Level { uint32_t head = kEnd, tail = kEnd; };
+
+  std::unique_ptr<Node[]>     pool_ = std::make_unique<Node[]>(PoolSize + 1);
+  std::unique_ptr<uint32_t[]> slot_ = std::make_unique<uint32_t[]>(MaxIds);
+  std::unique_ptr<Level[]>    lv_   = std::make_unique<Level[]>(2 * static_cast<size_t>(MaxPrice));
+  uint32_t free_head_ = 0;
+  Price best_[2] = {kNoBid, kNoAsk};
+  [[no_unique_address]] OnTrade on_trade_{};
+
