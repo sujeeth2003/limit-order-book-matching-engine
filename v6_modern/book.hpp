@@ -46,3 +46,23 @@ class Book {
   Price best_[2] = {kNoBid, kNoAsk};
   [[no_unique_address]] OnTrade on_trade_{};
 
+  [[nodiscard]] Level& level(uint32_t s, Price p) noexcept { return lv_[static_cast<size_t>(s) * MaxPrice + p]; }
+
+  void advance(uint32_t s) noexcept {
+    const Price dir = static_cast<Price>(2 * s) - 1;
+    const Price lim = s ? kNoAsk : kNoBid;
+    Price p = best_[s];
+    while (p != lim && level(s, p).head == kEnd) p += dir;
+    best_[s] = p;
+  }
+  void unlink(Node& n, uint32_t i) noexcept {
+    Level& l = level(n.side, n.px);
+    uint32_t* fwd  = n.prev == kEnd ? &l.head : &pool_[n.prev].next;
+    uint32_t* back = n.next == kEnd ? &l.tail : &pool_[n.next].prev;
+    *fwd = n.next;
+    *back = n.prev;
+    slot_[n.id] = kEnd;
+    n.next = free_head_;
+    free_head_ = i;
+  }
+
