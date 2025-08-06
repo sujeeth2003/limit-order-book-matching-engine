@@ -66,3 +66,35 @@ class Book {
     free_head_ = i;
   }
 
+ public:
+  uint64_t trades = 0, volume = 0;
+
+  explicit Book(OnTrade hook = {}) : on_trade_(hook) {
+    for (uint32_t i = 0; i < PoolSize; ++i) pool_[i].next = i + 1 < PoolSize ? i + 1 : kEnd;
+    for (uint32_t i = 0; i < MaxIds; ++i) slot_[i] = kEnd;
+  }
+  Book(Book&&) noexcept = default;
+  Book& operator=(Book&&) noexcept = default;
+  Book(const Book&) = delete;
+  Book& operator=(const Book&) = delete;
+
+  void add(OrderId id, Side side, Price px, Qty q) noexcept {
+    const uint32_t s = side, o = s ^ 1u;
+    const Price sgn = 1 - 2 * static_cast<Price>(s);
+    while (q) {
+      const Price bp = best_[o];
+      if (sgn * (px - bp) < 0) break;
+      Level& l = level(o, bp);
+      while (q && l.head != kEnd) {
+        const uint32_t cur = l.head;
+        Node& n = pool_[cur];
+        const Qty f = q < n.qty ? q : n.qty;
+        q -= f; n.qty -= f; ++trades; volume += f;
+        on_trade_(n.id, id, bp, f);
+        if (!n.qty) unlink(n, cur);
+      }
+      if (l.head == kEnd) advance(o);
+    }
+    if (!q) return;
+    const uint32_t i = free_head_;
+    Node& n = pool_[i];
