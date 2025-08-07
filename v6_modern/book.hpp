@@ -98,3 +98,28 @@ class Book {
     if (!q) return;
     const uint32_t i = free_head_;
     Node& n = pool_[i];
+    free_head_ = n.next;
+    Level& l = level(s, px);
+    n = {l.tail, kEnd, q, static_cast<uint32_t>(id), px, s};
+    uint32_t* fwd = l.tail == kEnd ? &l.head : &pool_[l.tail].next;
+    *fwd = i;
+    l.tail = i;
+    slot_[id] = i;
+    best_[s] = sgn * (px - best_[s]) > 0 ? px : best_[s];
+  }
+  [[nodiscard]] bool cancel(OrderId id) noexcept {
+    const uint32_t i = slot_[id];
+    if (i == kEnd) return false;
+    Node& n = pool_[i];
+    const uint32_t s = n.side;
+    const Price px = n.px;
+    unlink(n, i);
+    if (level(s, px).head == kEnd && best_[s] == px) advance(s);
+    return true;
+  }
+  [[nodiscard]] Price best_bid() const noexcept { return best_[Buy]; }
+  [[nodiscard]] Price best_ask() const noexcept { return best_[Sell]; }
+};
+
+using DefaultBook = Book<>;
+}  // namespace v6
