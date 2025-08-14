@@ -39,3 +39,11 @@ template <class B> void scenarios(const char* name) {
   std::printf("scenarios ok: %s\n", name);
 }
 
+template <class A, class B> void same(A& a, B& b, size_t i) {
+  if (a.best_bid() != b.best_bid() || a.best_ask() != b.best_ask() || a.trades != b.trades ||
+      a.volume != b.volume) {
+    std::printf("DIVERGED at op %zu\n", i);
+    ++failures;
+  }
+}
+
