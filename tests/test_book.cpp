@@ -47,3 +47,29 @@ template <class A, class B> void same(A& a, B& b, size_t i) {
   }
 }
 
+int main() {
+  scenarios<v1::Book>("v1"); scenarios<v2::Book>("v2"); scenarios<v3::Book>("v3");
+  scenarios<v4::Book>("v4"); scenarios<v6::DefaultBook>("v6");
+
+  auto ops = make_workload(300000, 7);
+  v1::Book r; v2::Book b2; v3::Book b3; v4::Book b4; v6::DefaultBook b6;
+  for (size_t i = 0; i < ops.size() && !failures; ++i) {
+    const Op& o = ops[i];
+    if (o.cancel) {
+      bool x = r.cancel(o.id);
+      CHECK(b2.cancel(o.id) == x); CHECK(b3.cancel(o.id) == x);
+      CHECK(b4.cancel(o.id) == x); CHECK(b6.cancel(o.id) == x);
+    } else {
+      r.add(o.id, o.side, o.px, o.qty); b2.add(o.id, o.side, o.px, o.qty); b3.add(o.id, o.side, o.px, o.qty);
+      b4.add(o.id, o.side, o.px, o.qty); b6.add(o.id, o.side, o.px, o.qty);
+    }
+    same(r, b2, i); same(r, b3, i); same(r, b4, i); same(r, b6, i);
+  }
+  // v4 aggregate quantity: SIMD and scalar depth must agree
+  if (v4::has_avx2()) for (int n : {1, 3, 8, 20, 100}) {
+    CHECK(b4.depth<true>(Buy, n) == b4.depth<false>(Buy, n));
+    CHECK(b4.depth<true>(Sell, n) == b4.depth<false>(Sell, n));
+  }
+  std::printf(failures ? "FAILED (%d)\n" : "differential test ok: 300000 ops x 5 versions\n", failures);
+  return failures ? 1 : 0;
+}
