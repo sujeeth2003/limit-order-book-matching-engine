@@ -29,3 +29,10 @@ simd: build/simd_bench
 asm:
 	sh scripts/asm_check.sh
 
+# Linux only: branch-miss and cache counters per version
+perf: build/bench_all
+	perf stat -e branches,branch-misses,cache-misses,L1-dcache-load-misses ./build/bench_all 1000000 1 0
+
+clean:
+	rm -rf build
+.PHONY: all test bench simd asm perf clean
