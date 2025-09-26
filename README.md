@@ -13,3 +13,13 @@ A price-time-priority limit order book, rebuilt six times. Each version changes 
 
 Prices are integer ticks everywhere. Orders: limit add (matching against the opposite side first, remainder rests) and cancel by id.
 
+## Build, test, benchmark
+```bash
+make test     # hand-written scenarios + randomized differential test (v1 is the reference)
+make bench    # v1-v4, v6 single-thread, then v5 multi-client
+make simd     # scalar vs AVX2 summation crossover
+make asm      # cmov vs jcc count, v2 vs v3
+make perf     # Linux: perf stat branch / cache counters
+```
+Needs a C++20 compiler (g++ or clang++) and x86-64 (uses `rdtsc`; v4 uses AVX2 and falls back to scalar at runtime if unavailable).
+
