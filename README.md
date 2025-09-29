@@ -37,3 +37,19 @@ Measured on a 11th-gen Core i5-1135G7 laptop, **Windows 11, clang 21 (`-O2`), un
 | v4 AVX2 (+aggregate qty) | 48.1 Mops/s | 16 ns | 95 ns | 169 ns |
 | v6 modern | 54.2 Mops/s | 14 ns | 96 ns | 231 ns |
 
+- `make asm` (clang 21, `-O2`): v2 has 27 conditional jumps / 1 `cmov`; v3 has 16 jumps / 7 `cmov`. The fill loop's exit condition is still a data-dependent branch.
+- v1 -> v2 is the big win (**~7x**). v2 -> v3 is a modest gain and within run-to-run noise on some runs; v4 is slightly slower on this workload because it maintains an extra array on every fill and never calls `depth()` in the benchmark. I am reporting that rather than hiding it.
+- **SIMD crossover** (`make simd`, ns per sum): n=1: 1.2 scalar vs 1.5 AVX2; n=8: 2.0 vs 1.6; n=64: 10.0 vs 5.2; n=1024: 157 vs 70. AVX2 does not help with 1-3 elements.
+- **v5** on this box with 2 clients (unpinned, 3 us send gap): p50 112 ns queue-to-processed, but p99 ~0.5 ms from OS scheduling on a laptop that is also running other work. Pin cores and isolate them on Linux for a meaningful tail.
+
+## Layout
+```
+common/   types, workload generator, calibrated clock, SPSC ring, thread pinning
+v1..v6/   one directory per version
+bench/    bench_all.cpp
+tests/    test_book.cpp
+```
+Each version is a git tag (`v1` ... `v6`) with one commit per version, so the history reads as the optimisation log. The benchmark/test harness and this README arrive with the final commit (they need all versions).
+
+## Limits
+Fixed price range (`MAXP` ticks), fixed pool size, and ids must be dense integers below `MAXID` in the index-by-id versions. That is a deliberate trade for speed, not a production design.
